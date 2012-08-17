@@ -1,0 +1,14 @@
+#!/usr/bin/env sh
+
+disk_type()
+{
+	local disk_dev="$1"
+
+	[ -z "$disk_dev" ] && return
+
+	if `2>/dev/null smartctl -i "/dev/$disk_dev" | grep "Transport protocol: SAS" >/dev/null`; then
+		echo "SAS"
+	else
+		echo "SATA"
+	fi
+}

@@ -1,0 +1,18 @@
+#!/bin/sh
+
+echo "disk_dev=/dev/sdb;enclosure=0;slot=1"
+echo "disk_dev=/dev/sdc;enclosure=0;slot=2"
+echo "disk_dev=/dev/sdd;enclosure=0;slot=3"
+echo "disk_dev=/dev/sde;enclosure=0;slot=4"
+echo "disk_dev=/dev/sdf;enclosure=0;slot=5"
+echo "disk_dev=/dev/sdg;enclosure=0;slot=6"
+echo "disk_dev=/dev/sdh;enclosure=0;slot=7"
+echo "disk_dev=/dev/sdi;enclosure=0;slot=8"
+echo "disk_dev=/dev/sdj;enclosure=0;slot=9"
+echo "disk_dev=/dev/sdk;enclosure=0;slot=10"
+echo "disk_dev=/dev/sdl;enclosure=0;slot=11"
+echo "disk_dev=/dev/sdm;enclosure=0;slot=12"
+echo "disk_dev=/dev/sdn;enclosure=0;slot=13"
+echo "disk_dev=/dev/sdo;enclosure=0;slot=14"
+echo "disk_dev=/dev/sdp;enclosure=0;slot=15"
+echo "disk_dev=/dev/sdq;enclosure=0;slot=16"

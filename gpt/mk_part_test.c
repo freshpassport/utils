@@ -49,16 +49,16 @@ int main(int argc, char *argv[])
 	constraint = ped_constraint_any(dev);
 
 	// part1: 17.4Kb ~ 15MB
-	/*part = ped_partition_new(disk, PED_PARTITION_NORMAL,
+	part = ped_partition_new(disk, PED_PARTITION_NORMAL,
 				NULL,
 				34, 29296);
 	ped_disk_add_partition(disk, part, constraint);
-	*/
 
 	// part2: 15MB ~ 35MB
 	part = ped_partition_new(disk, PED_PARTITION_NORMAL,
 				NULL,
 				29297, 71680);
+	ped_partition_set_name(part, "udv2");
 	ped_disk_add_partition(disk, part, constraint);
 
 	ped_disk_commit(disk);

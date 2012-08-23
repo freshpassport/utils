@@ -69,9 +69,9 @@ ssize_t udv_create(const char *vg_name, const char *name, uint64_t capacity)
                         part = ped_disk_next_partition(disk, part))
         {
                 udv->part_num = part->num;
-                udv->start = part->geom.start * DFT_SECTOR_SIZE;
-                udv->capacity = part->geom.length * DFT_SECTOR_SIZE;
-                udv->end = udv->start + udv->capacity - 1;
+                udv->geom.start = part->geom.start * DFT_SECTOR_SIZE;
+                udv->geom.capacity = part->geom.length * DFT_SECTOR_SIZE;
+                udv->geom.end = udv->geom.start + udv->geom.capacity - 1;
                 udv++; udv_cnt++;
         }
 
@@ -98,7 +98,7 @@ success:
  */
 ssize_t udv_delete(const char *name)
 {
-        udv_info_t list[MAX_UDV], *udv;
+        udv_info_t *udv;
         size_t udv_cnt, i;
 
         PedDevice *device;
@@ -110,15 +110,7 @@ ssize_t udv_delete(const char *name)
                 return EINVAL;
 
         // 查找UDV
-        if ((udv_cnt=udv_list(list, MAX_UDV))==0)
-                return ENODEV;
-
-        udv = &list[0];
-        for (i=0; i<udv_cnt; i++)
-                if (!strcmp(name, udv->name))
-                        break;
-        
-        if (i==udv_cnt)
+        if (!(udv=get_udv_by_name(name)))
                 return ENODEV;
 
         // 删除分区
@@ -170,7 +162,7 @@ size_t udv_list(udv_info_t *list, size_t n)
                                 part=ped_disk_next_partition(disk, part))
                 {
                         if (part->num < 0) continue;
-                        
+
                         part_name = ped_partition_get_name(part);
                         if (!part_name) continue;
 
@@ -180,10 +172,10 @@ size_t udv_list(udv_info_t *list, size_t n)
                         strcpy(udv->name, part_name);
                         strcpy(udv->vg_dev, dev->path);
                         udv->part_num = part->num;
-                        
-                        udv->start = part->geom.start * DFT_SECTOR_SIZE;
-                        udv->capacity = part->geom.length * DFT_SECTOR_SIZE;
-                        udv->end = udv->start + udv->capacity - 1;
+
+                        udv->geom.start = part->geom.start * DFT_SECTOR_SIZE;
+                        udv->geom.capacity = part->geom.length * DFT_SECTOR_SIZE;
+                        udv->geom.end = udv->geom.start + udv->geom.capacity - 1;
 
                         // TODO: udv->state;
 
@@ -193,6 +185,58 @@ size_t udv_list(udv_info_t *list, size_t n)
         }
 
         return udv_cnt;
+}
+
+udv_info_t* get_udv_by_name(const char *name)
+{
+        PedDevice *dev;
+        PedDisk *disk;
+        PedPartition *part;
+
+        const char *part_name;
+        static udv_info_t udv_info;
+        udv_info_t *udv = NULL;
+
+        ped_device_probe_all();
+
+        while((dev=ped_device_get_next(dev)))
+        {
+                printf("dev path: %s, type: %d\n", dev->path, dev->type);
+
+                // 获取所有MD列表
+                if (dev->type != PED_DEVICE_MD)
+                        continue;
+
+                // 获取当前MD分区信息
+                disk = ped_disk_new(dev);
+                if (!disk) continue;
+
+                for (part=ped_disk_next_partition(disk, NULL); part;
+                                part=ped_disk_next_partition(disk, part))
+                {
+                        if (part->num < 0) continue;
+
+                        part_name = ped_partition_get_name(part);
+                        if ( part_name && !strcmp(part_name, name) )
+                        {
+                                udv = &udv_info;
+                                strcpy(udv->name, part_name);
+                                strcpy(udv->vg_dev, dev->path);
+                                udv->part_num = part->num;
+
+                                udv->geom.start = part->geom.start * DFT_SECTOR_SIZE;
+                                udv->geom.capacity = part->geom.length * DFT_SECTOR_SIZE;
+                                udv->geom.end = udv->geom.start + udv->geom.capacity - 1;
+
+                                // TODO: udv->state;
+
+                                break;
+                        }
+                }
+                ped_disk_destroy(disk);
+        }
+
+        return udv;
 }
 
 /**

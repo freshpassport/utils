@@ -20,6 +20,12 @@ enum _udv_state {
         UDV_NAS
 };
 
+// 用户数据卷容量信息
+typedef struct _udv_geom udv_geom;
+struct _udv_geom {
+        uint64_t start, end, capacity;
+};
+
 typedef struct _udv_info udv_info_t;
 
 #define UDV_NAME_LEN 72
@@ -27,7 +33,7 @@ struct _udv_info {
         char name[UDV_NAME_LEN];
         char vg_dev[PATH_MAX];
         int part_num;
-        uint64_t start, end, capacity;
+        udv_geom geom;
         uint32_t sector_size;   // not used currently
         udv_state state;
 };
@@ -57,5 +63,7 @@ const char* vg_dev2name(const char *dev);
 const char* udv_name2dev(const char *name);
 
 const char* dev_dev2name(const char *dev);
+
+udv_info_t* get_udv_by_name(const char *name);
 
 #endif/*_LIB_UDV_H*/

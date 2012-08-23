@@ -35,7 +35,7 @@ void test_list()
 	{
 		printf("%-10s %-8s %-2d %-8lld %-8lld %-8lld\n",
 			udv->vg_dev, udv->name, udv->part_num,
-			udv->start, udv->end, udv->capacity);
+			udv->geom.start, udv->geom.end, udv->geom.capacity);
 		udv++;
 	}
 }
@@ -47,7 +47,7 @@ void test_delete()
 
 int main()
 {
-	test_list();
+	//test_list();
 
 	test_delete();
 

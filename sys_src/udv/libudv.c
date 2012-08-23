@@ -1,3 +1,4 @@
+#include <parted/parted.h>
 #include "libudv.h"
 
 const static int DFT_SECTOR_SIZE = 512;
@@ -29,14 +30,15 @@ _create_disk_label (PedDevice *dev, PedDiskType *type)
 
 ssize_t udv_create(const char *vg_name, const char *name, uint64_t capacity)
 {
-        udv_info_t udv_list[MAX_UDV];
+        udv_info_t udv_list[MAX_UDV], *udv;
         size_t udv_cnt = 0, i;
-        bool old_exist = false, new_exist = false;
 
         PedDevice *device;
         PedDisk *disk;
         PedPartition *part;
         PedConstraint *constraint;
+
+	const char *vg_dev;
 
         // 参数检查
         if (!name)
@@ -63,8 +65,8 @@ ssize_t udv_create(const char *vg_name, const char *name, uint64_t capacity)
         
         // 获取当前VG的所有分区
         udv = &udv_list[0];
-        for (part=ped_disk_get_partition(disk, NULL); part;
-                        part = ped_disk_get_partition(disk, part))
+        for (part=ped_disk_next_partition(disk, NULL); part;
+                        part = ped_disk_next_partition(disk, part))
         {
                 udv->part_num = part->num;
                 udv->start = part->geom.start * DFT_SECTOR_SIZE;
@@ -96,9 +98,8 @@ success:
  */
 ssize_t udv_delete(const char *name)
 {
-        udv_info_t udv_list[MAX_UDV];
+        udv_info_t list[MAX_UDV], *udv;
         size_t udv_cnt, i;
-        bool old_exist = false, new_exist = false;
 
         PedDevice *device;
         PedDisk *disk;
@@ -109,10 +110,10 @@ ssize_t udv_delete(const char *name)
                 return EINVAL;
 
         // 查找UDV
-        if ((udv_cnt=udv_list(udv_list, MAX_UDV))==0)
+        if ((udv_cnt=udv_list(list, MAX_UDV))==0)
                 return ENODEV;
 
-        udv = &udv_list[0];
+        udv = &list[0];
         for (i=0; i<udv_cnt; i++)
                 if (!strcmp(name, udv->name))
                         break;
@@ -150,10 +151,11 @@ size_t udv_list(udv_info_t *list, size_t n)
         PedDisk *disk;
         PedPartition *part;
 
-        char *part_name;
-        udv_int *udv = list;
+        const char *part_name;
+        udv_info_t *udv = list;
 
         ped_device_probe_all();
+
         while((dev=ped_device_get_next(dev)))
         {
                 // 获取所有MD列表
@@ -185,7 +187,7 @@ size_t udv_list(udv_info_t *list, size_t n)
 
                         // TODO: udv->state;
 
-                        udv_cnt++;
+                        udv_cnt++; udv++;
                 }
                 ped_disk_destroy(disk);
         }
@@ -205,7 +207,7 @@ size_t udv_list(udv_info_t *list, size_t n)
  */
 ssize_t udv_rename(const char *name, const char *new_name)
 {
-        udv_info_t udv_list[MAX_UDV];
+        udv_info_t list[MAX_UDV], *udv;
         size_t udv_cnt, i;
         bool old_exist = false, new_exist = false;
 
@@ -218,10 +220,10 @@ ssize_t udv_rename(const char *name, const char *new_name)
                 return EINVAL;
 
         // 查找UDV
-        if ((udv_cnt=udv_list(udv_list, MAX_UDV))==0)
+        if ((udv_cnt=udv_list(list, MAX_UDV))==0)
                 return ENODEV;
 
-        udv = &udv_list[0];
+        udv = &list[0];
         for (i=0; i<udv_cnt; i++)
         {
                 if (!strcmp(name, udv->name))
@@ -270,7 +272,7 @@ success:
  */
 bool udv_exist(const char *name)
 {
-        udv_info_t udv_list[MAX_UDV];
+        udv_info_t list[MAX_UDV];
         size_t udv_cnt, i;
 
         // 参数检查
@@ -278,11 +280,11 @@ bool udv_exist(const char *name)
                 return EINVAL;
 
         // 查找UDV
-        if ((udv_cnt=udv_list(udv_list, MAX_UDV))==0)
+        if ((udv_cnt=udv_list(list, MAX_UDV))==0)
                 return ENODEV;
 
         for (i=0; i<udv_cnt; i++)
-                if (!strcmp(name, udv_list[i].name))
+                if (!strcmp(name, list[i].name))
                         return true;
         return false;
 }

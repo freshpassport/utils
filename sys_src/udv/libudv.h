@@ -1,3 +1,9 @@
+#include <errno.h>
+#include <stdio.h>
+#include <limits.h>	// for PATH_MAX
+#include <stdint.h>
+#include <stdbool.h>
+
 #ifndef _LIB_UDV_H
 #define _lib_UDV_H
 
@@ -5,9 +11,7 @@
  * Defination
  */
 
-#define MAX_UDV (16*128)
-
-typedef struct _udv_info udv_info_t;
+#define MAX_UDV 10
 
 typedef enum _udv_state udv_state;
 enum _udv_state {
@@ -15,6 +19,8 @@ enum _udv_state {
         UDV_ISCSI,
         UDV_NAS
 };
+
+typedef struct _udv_info udv_info_t;
 
 #define UDV_NAME_LEN 72
 struct _udv_info {
@@ -25,6 +31,7 @@ struct _udv_info {
         uint32_t sector_size;   // not used currently
         udv_state state;
 };
+
 
 /**
  * API

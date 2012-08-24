@@ -40,17 +40,20 @@ void test_list()
 	}
 }
 
-void test_delete()
+int main(int argc, char *argv[])
 {
-	udv_delete("udv1");
-}
+	if (argc!=2)
+	{
+		printf("input udv name to be deleted!\n");
+		return -1;
+	}
 
-int main()
-{
-	//test_list();
+	printf("=========== before delete =============\n");
+	test_list();
 
-	test_delete();
+	udv_delete(argv[1]);
 
+	printf("=========== after delete =============\n");
 	test_list();
 
 	return 0;

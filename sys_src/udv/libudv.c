@@ -139,7 +139,7 @@ size_t udv_list(udv_info_t *list, size_t n)
 {
         size_t udv_cnt = 0;
 
-        PedDevice *dev;
+        PedDevice *dev = NULL;
         PedDisk *disk;
         PedPartition *part;
 
@@ -189,7 +189,7 @@ size_t udv_list(udv_info_t *list, size_t n)
 
 udv_info_t* get_udv_by_name(const char *name)
 {
-        PedDevice *dev;
+        PedDevice *dev = NULL;
         PedDisk *disk;
         PedPartition *part;
 
@@ -201,15 +201,13 @@ udv_info_t* get_udv_by_name(const char *name)
 
         while((dev=ped_device_get_next(dev)))
         {
-                printf("dev path: %s, type: %d\n", dev->path, dev->type);
-
                 // 获取所有MD列表
                 if (dev->type != PED_DEVICE_MD)
                         continue;
 
                 // 获取当前MD分区信息
-                disk = ped_disk_new(dev);
-                if (!disk) continue;
+                if ( !(disk=ped_disk_new(dev)) )
+			continue;
 
                 for (part=ped_disk_next_partition(disk, NULL); part;
                                 part=ped_disk_next_partition(disk, part))
@@ -229,14 +227,17 @@ udv_info_t* get_udv_by_name(const char *name)
                                 udv->geom.end = udv->geom.start + udv->geom.capacity - 1;
 
                                 // TODO: udv->state;
+				udv->state = UDV_RAW; // for debug
 
-                                break;
+				ped_disk_destroy(disk);
+				return udv;
+
                         }
                 }
                 ped_disk_destroy(disk);
         }
 
-        return udv;
+        return NULL;
 }
 
 /**

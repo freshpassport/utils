@@ -4,7 +4,7 @@
 
 void get_udv_by_name(const char *name)
 {
-        PedDevice *dev;
+        PedDevice *dev = NULL;
         PedDisk *disk;
         PedPartition *part;
 

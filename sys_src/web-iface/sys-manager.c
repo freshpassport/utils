@@ -1,7 +1,7 @@
 #include "web-iface.h"
 
 struct cmd_map cmd_map[] = {
-  {"disk", wis_disk_main},
+  {"udv", udv_main},
   {"", NULL}
 };
 

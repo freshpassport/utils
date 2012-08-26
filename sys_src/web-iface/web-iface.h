@@ -33,6 +33,6 @@ static inline char *last_path_component(char *name)
   return (slash) ? slash + 1 : name;
 }
 
-int wis_disk_main(int argc, char *argv[]);
+int udv_main(int argc, char *argv[]);
 
 #endif/*__WEB_IFACE_H__*/

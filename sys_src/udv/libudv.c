@@ -28,6 +28,7 @@ ssize_t udv_create(const char *vg_name, const char *name, uint64_t capacity)
         PedDisk *disk = NULL;
         PedPartition *part;
         PedConstraint *constraint;
+	PedDiskType *type = NULL;
 
 	struct list list, *n, *nt;
 	struct geom_stru *elem;
@@ -54,16 +55,14 @@ ssize_t udv_create(const char *vg_name, const char *name, uint64_t capacity)
         // 创建用户数据卷
         if (!(device = ped_device_get(vg_dev)))
 		return E_SYS_ERROR;
+        constraint = ped_constraint_any(device);
 
-        if (!(constraint = ped_constraint_any(device)))
-                goto error;
+	if ( (type = ped_disk_probe(device)) && !strcmp(type->name, "gpt") )
+		disk = ped_disk_new(device);
+	else
+		disk = _create_disk_label(device, ped_disk_type_get("gpt"));
 
-	if ( ped_disk_probe(device) && (disk=ped_disk_new(device)) )
-	{
-		if (strcmp(disk->type->name, "gpt"))
-			goto error;
-	}
-	else if (!(disk = _create_disk_label(device, ped_disk_type_get("gpt"))))
+	if (!disk)
 		goto error;
 
 	list_iterate_safe(n, nt, &list)
@@ -75,6 +74,7 @@ ssize_t udv_create(const char *vg_name, const char *name, uint64_t capacity)
 				NULL,
 				(elem->geom.start/DFT_SECTOR_SIZE),
 				(uint64_t)((elem->geom.start + capacity)/DFT_SECTOR_SIZE));
+
 			ped_partition_set_name(part, name);
 			ped_disk_add_partition(disk, part, constraint);
 			ped_disk_commit(disk);
@@ -143,7 +143,8 @@ ssize_t get_udv_free_list(const char *vg_name, struct list *list)
 				gs->geom.capacity = gs->geom.end - gs->geom.start + 1;
 				list_add(list, &gs->list);
 
-				last_geom.end = gs->geom.end + 1;
+				last_geom.end = (part->geom.end+1) * DFT_SECTOR_SIZE;
+
 				if (ret_code<0)
 					ret_code = 0;
 				ret_code++;
@@ -160,6 +161,7 @@ ssize_t get_udv_free_list(const char *vg_name, struct list *list)
 		gs->geom.capacity = gs->geom.end - gs->geom.start + 1;
 
 		list_add(list, &gs->list);
+
 		if (ret_code < 0)
 			ret_code = 1;
 		else
@@ -168,7 +170,6 @@ ssize_t get_udv_free_list(const char *vg_name, struct list *list)
 
 	if (disk)
 		ped_disk_destroy(disk);
-err:
         ped_device_destroy(device);
 err_out:
         return ret_code;
@@ -185,7 +186,6 @@ err_out:
 ssize_t udv_delete(const char *name)
 {
         udv_info_t *udv;
-        size_t udv_cnt;
 
         PedDevice *device;
         PedDisk *disk;

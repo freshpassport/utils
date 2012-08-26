@@ -42,28 +42,28 @@ void test_list()
 
 int main(int argc, char *argv[])
 {
-	/*
 	if (argc!=2)
 	{
 		printf("input udv name to be deleted!\n");
 		return -1;
 	}
-	*/
 
 	printf("=========== before delete =============\n");
 	test_list();
 
+	/*
 	if (argc!=3)
 	{
 		printf("%s udv_name size\n", argv[0]);
 		return -1;
 	}
+	*/
 
-	//udv_delete(argv[1]);
-	udv_create("/dev/md1", argv[1], atoll(argv[2]));
+	udv_delete(argv[1]);
+	//udv_create("/dev/md1", argv[1], atoll(argv[2]));
 
-	//printf("=========== after delete =============\n");
-	printf("=========== after create =============\n");
+	printf("=========== after delete =============\n");
+	//printf("=========== after create =============\n");
 	test_list();
 
 	/*

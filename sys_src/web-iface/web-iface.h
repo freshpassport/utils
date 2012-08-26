@@ -35,4 +35,6 @@ static inline char *last_path_component(char *name)
 
 int udv_main(int argc, char *argv[]);
 
+int external_main(int argc, char *argv[]);
+
 #endif/*__WEB_IFACE_H__*/

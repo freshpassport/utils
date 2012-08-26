@@ -63,6 +63,8 @@ void list_udv()
 	udv_info_t list[MAX_UDV], *udv;
 	size_t udv_cnt = 0, i;
 
+	char udv_type[128];
+
 	udv_cnt = udv_list(list, MAX_UDV);
 	if (udv_cnt<0)
 		return_json_msg(MSG_ERROR, "获取用户数据卷失败!");
@@ -80,12 +82,17 @@ void list_udv()
 
 	for (i=0; i<udv_cnt; i++)
 	{
+		if (udv->state==UDV_RAW)
+			strcpy(udv_type, "raw");
+		else if (udv->state==UDV_NAS)
+			strcpy(udv_type, "nas");
+
 		if (i+1==udv_cnt)
-			printf("\n\t\t\"name\":\"%s\", \"capacity\":%lld, \"state\":\"raw\"}",
-					udv->name, udv->geom.capacity);
+			printf("\n\t\t\"name\":\"%s\", \"capacity\":%lld, \"state\":\"%s\"}",
+					udv->name, udv->geom.capacity, udv_type);
 		else
-			printf("\n\t\t\"name\":\"%s\", \"capacity\":%lld, \"state\":\"raw\"},",
-					udv->name, udv->geom.capacity);
+			printf("\n\t\t\"name\":\"%s\", \"capacity\":%lld, \"state\":\"%s\"},",
+					udv->name, udv->geom.capacity, udv_type);
 		udv++;
 	}
 

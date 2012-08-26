@@ -263,7 +263,11 @@ size_t udv_list(udv_info_t *list, size_t n)
                         udv->geom.capacity = part->geom.length * DFT_SECTOR_SIZE;
                         udv->geom.end = udv->geom.start + udv->geom.capacity - 1;
 
-                        // TODO: udv->state;
+                        // TODO: udv->state; iscsi
+			if (part->fs_type)
+				udv->state = UDV_NAS;
+			else
+				udv->state = UDV_RAW;
 
                         udv_cnt++; udv++;
                 }

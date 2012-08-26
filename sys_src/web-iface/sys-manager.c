@@ -2,6 +2,8 @@
 
 struct cmd_map cmd_map[] = {
   {"udv", udv_main},
+  {"disk", external_main},
+  {"vg", external_main},
   {"", NULL}
 };
 

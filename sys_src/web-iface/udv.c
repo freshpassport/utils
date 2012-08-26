@@ -88,10 +88,10 @@ void list_udv()
 			strcpy(udv_type, "nas");
 
 		if (i+1==udv_cnt)
-			printf("\n\t\t\"name\":\"%s\", \"capacity\":%lld, \"state\":\"%s\"}",
+			printf("\n\t\t{\"name\":\"%s\", \"capacity\":%lld, \"state\":\"%s\"}",
 					udv->name, udv->geom.capacity, udv_type);
 		else
-			printf("\n\t\t\"name\":\"%s\", \"capacity\":%lld, \"state\":\"%s\"},",
+			printf("\n\t\t{\"name\":\"%s\", \"capacity\":%lld, \"state\":\"%s\"},",
 					udv->name, udv->geom.capacity, udv_type);
 		udv++;
 	}

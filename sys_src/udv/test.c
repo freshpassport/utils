@@ -42,6 +42,7 @@ void test_list()
 
 int main(int argc, char *argv[])
 {
+	/*
 	if (argc!=2)
 	{
 		printf("input udv name to be deleted!\n");
@@ -54,7 +55,14 @@ int main(int argc, char *argv[])
 	udv_delete(argv[1]);
 
 	printf("=========== after delete =============\n");
+	*/
 	test_list();
+
+	struct list list;
+	ssize_t n;
+
+	n = get_udv_free_list("/dev/md1", &list);
+	printf("n = %d\n", n);
 
 	return 0;
 }

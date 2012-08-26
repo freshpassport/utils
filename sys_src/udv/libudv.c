@@ -10,12 +10,6 @@ _create_disk_label (PedDevice *dev, PedDiskType *type)
 
         /* Create the label */
         disk = ped_disk_new_fresh (dev, type);
-        /*
-         *         fail_if (!disk, "Failed to create a label of type: %s",
-         *                          type->name);
-         *                                  fail_if (!ped_disk_commit(disk),
-         *                                               "Failed to commit label to device");
-         *                                                               */
         if (!disk)
                 return NULL;
         if (!ped_disk_commit(disk))
@@ -30,28 +24,27 @@ _create_disk_label (PedDevice *dev, PedDiskType *type)
 
 ssize_t udv_create(const char *vg_name, const char *name, uint64_t capacity)
 {
-        udv_info_t udv_list[MAX_UDV], *udv;
+        udv_info_t list[MAX_UDV], *udv;
         size_t udv_cnt = 0, i;
 
-        PedDevice *device;
+        PedDevice *device = NULL;
         PedDisk *disk;
         PedPartition *part;
         PedConstraint *constraint;
 
-	const char *vg_dev;
+	const char *vg_dev = vg_name;   // for debug
 
         // 参数检查
         if (!name)
                 return EINVAL;
 
         // 检查用户数据卷是否存在
-        if (udv_exist(name))
+        if (get_udv_by_name(name))
                 return EEXIST;
 
         // 检查VG是否存在
-        if (!(vg_dev=vg_name2dev(vg_name)))
-                return EEXIST;
-
+        //if (!(vg_dev=vg_name2dev(vg_name)))
+        //        return EEXIST;
 
         // 创建用户数据卷
         if (!(device = ped_device_get(vg_dev)))
@@ -62,18 +55,6 @@ ssize_t udv_create(const char *vg_name, const char *name, uint64_t capacity)
 
         if (!(constraint = ped_constraint_any(device)))
                 goto error;
-        
-        // 获取当前VG的所有分区
-        udv = &udv_list[0];
-        for (part=ped_disk_next_partition(disk, NULL); part;
-                        part = ped_disk_next_partition(disk, part))
-        {
-                udv->part_num = part->num;
-                udv->geom.start = part->geom.start * DFT_SECTOR_SIZE;
-                udv->geom.capacity = part->geom.length * DFT_SECTOR_SIZE;
-                udv->geom.end = udv->geom.start + udv->geom.capacity - 1;
-                udv++; udv_cnt++;
-        }
 
         // TODO: 查找空隙
         for (i=0; i<udv_cnt; i++)
@@ -88,6 +69,95 @@ success:
         return 0;
 }
 
+void free_geom_list(struct list *list)
+{
+        struct list *n, *nt;
+        struct geom_stru *elem;
+
+        if (!list_empty(list))
+        {
+                list_iterate_safe(n, nt, list)
+                {
+                        elem = list_struct_base(n, struct geom_stru, list);
+                        free(elem);
+                }
+        }
+}
+
+/* 计算磁盘空闲空间条件 */
+enum {
+        GET_DISK_CAPACITY = 0,	// 磁盘无label, 有GPT分区表但是无分区
+	GET_FREE_LIST,		// 磁盘有GPT分区表且存在分区
+	GET_ERROR		// 磁盘有分区表且不为GPT格式
+};
+
+ssize_t get_udv_free_list(const char *vg_name, struct list *list)
+{
+        PedDevice *device = NULL;
+        PedDisk *disk;
+        PedPartition *part;
+
+        struct geom_stru *gs;
+	int type = GET_DISK_CAPACITY;
+	ssize_t ret_code = E_FMT_ERROR;
+
+        if ( !(vg_name && list) )
+                return ret_code;
+        list_init(list);
+
+        if ( !(device = ped_device_get(vg_name)) )
+	{
+		ret_code = E_SYS_ERROR;
+                goto err_out;
+	}
+
+        if ( !(disk = ped_disk_new(device)) )
+	{
+		ret_code = E_SYS_ERROR;
+                goto err;
+	}
+
+	// 检查分区表是否存在以及类型是否为GPT
+	if (disk->type->name)
+        {
+		if (!strcmp(disk->type->name, "gpt"))
+			if (disk->part_list)
+				type = GET_FREE_LIST;
+			else
+				type = GET_DISK_CAPACITY;
+		else
+			type = GET_ERROR;
+
+        }
+
+	switch (type)
+	{
+		case GET_DISK_CAPACITY:
+		{
+			gs = (struct geom_stru*)malloc(sizeof(struct geom_stru));
+
+			gs->geom.start = 0;
+			gs->geom.capacity = (device->length * device->sector_size);
+			gs->geom.end = gs->geom.capacity - 1;
+
+			list_add(list, &gs->list);
+			ret_code = 1;
+		}
+		break;
+
+		case GET_FREE_LIST:
+		{
+		}
+		break;
+	}
+
+        ped_disk_destroy(disk);
+err:
+        ped_device_destroy(device);
+err_out:
+        return ret_code;
+}
+
 /**
  * @breif 删除指定名称的用户数据卷
  * @param name - 被删除用户数据卷名称
@@ -99,7 +169,7 @@ success:
 ssize_t udv_delete(const char *name)
 {
         udv_info_t *udv;
-        size_t udv_cnt, i;
+        size_t udv_cnt;
 
         PedDevice *device;
         PedDisk *disk;
@@ -107,11 +177,11 @@ ssize_t udv_delete(const char *name)
 
         // 参数检查
         if (!name)
-                return EINVAL;
+                return E_FMT_ERROR;
 
         // 查找UDV
         if (!(udv=get_udv_by_name(name)))
-                return ENODEV;
+                return E_UDV_NONEXIST;
 
         // 删除分区
         if (!(device = ped_device_get(udv->vg_dev)))
@@ -130,9 +200,9 @@ ssize_t udv_delete(const char *name)
 error:
         ped_device_destroy(device);
 error_eio:
-        return EIO;
+        return E_SYS_ERROR;
 success:
-        return 0;
+        return E_OK;
 }
 
 size_t udv_list(udv_info_t *list, size_t n)
@@ -311,28 +381,6 @@ success:
  * Utils
  */
 
-
-/**
- * @param name - 用户数据卷名称
- */
-bool udv_exist(const char *name)
-{
-        udv_info_t list[MAX_UDV];
-        size_t udv_cnt, i;
-
-        // 参数检查
-        if (!name)
-                return EINVAL;
-
-        // 查找UDV
-        if ((udv_cnt=udv_list(list, MAX_UDV))==0)
-                return ENODEV;
-
-        for (i=0; i<udv_cnt; i++)
-                if (!strcmp(name, list[i].name))
-                        return true;
-        return false;
-}
 
 const char* vg_name2dev(const char *name)
 {

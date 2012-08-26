@@ -3,6 +3,7 @@
 #include <limits.h>	// for PATH_MAX
 #include <stdint.h>
 #include <stdbool.h>
+#include "list.h"
 
 #ifndef _LIB_UDV_H
 #define _lib_UDV_H
@@ -12,6 +13,18 @@
  */
 
 #define MAX_UDV 10
+
+/* Error Code */
+enum {
+	E_OK = 0,
+	E_FMT_ERROR = -1,
+	E_VG_NONEXIST = -2,
+	E_UDV_NONEXIST = -3,
+	E_VG_EXIST = -4,
+	E_UDV_EXIST = -5,
+	E_SYS_ERROR = -6,
+	E_NO_FREE_SPACE = -7
+};
 
 typedef enum _udv_state udv_state;
 enum _udv_state {
@@ -38,6 +51,10 @@ struct _udv_info {
         udv_state state;
 };
 
+struct geom_stru {
+        struct list list;
+        udv_geom geom;
+};
 
 /**
  * API
@@ -65,5 +82,7 @@ const char* udv_name2dev(const char *name);
 const char* dev_dev2name(const char *dev);
 
 udv_info_t* get_udv_by_name(const char *name);
+
+ssize_t get_udv_free_list(const char *vg_name, struct list *list);
 
 #endif/*_LIB_UDV_H*/

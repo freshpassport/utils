@@ -48,21 +48,39 @@ int main(int argc, char *argv[])
 		printf("input udv name to be deleted!\n");
 		return -1;
 	}
+	*/
 
 	printf("=========== before delete =============\n");
 	test_list();
 
-	udv_delete(argv[1]);
+	if (argc!=3)
+	{
+		printf("%s udv_name size\n", argv[0]);
+		return -1;
+	}
 
-	printf("=========== after delete =============\n");
-	*/
+	//udv_delete(argv[1]);
+	udv_create("/dev/md1", argv[1], atoll(argv[2]));
+
+	//printf("=========== after delete =============\n");
+	printf("=========== after create =============\n");
 	test_list();
 
-	struct list list;
+	/*
+	struct list list, *nn, *nt;
 	ssize_t n;
+	struct geom_stru *elem;
 
 	n = get_udv_free_list("/dev/md1", &list);
 	printf("n = %d\n", n);
+
+	list_iterate_safe(nn, nt, &list)
+	{
+		elem = list_struct_base(nn, struct geom_stru, list);
+		printf("start = %llu, end = %llu, capacity = %llu\n",
+			elem->geom.start, elem->geom.end, elem->geom.capacity);
+	}
+	*/
 
 	return 0;
 }

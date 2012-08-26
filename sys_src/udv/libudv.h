@@ -85,4 +85,6 @@ udv_info_t* get_udv_by_name(const char *name);
 
 ssize_t get_udv_free_list(const char *vg_name, struct list *list);
 
+void free_geom_list(struct list *list);
+
 #endif/*_LIB_UDV_H*/

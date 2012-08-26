@@ -30,8 +30,12 @@ int main(int argc, char *argv[])
 	PedPartition *part;
 	PedConstraint *constraint;
 
-	if (argc!=2)
-		exit(1);
+	/*
+	 * argv [1] device
+	 *      [2] udv_name
+	 *      [3] start
+	 *      [4] end
+	 */
 
 	dev = ped_device_get(argv[1]);
 	if (!dev)
@@ -40,7 +44,8 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 
-	disk = _create_disk_label(dev, ped_disk_type_get("gpt"));
+	//disk = _create_disk_label(dev, ped_disk_type_get("gpt"));
+	disk = ped_disk_new(dev);
 	if (!disk)
 	{
 		fprintf(stderr, "fail to create disk label gpt\n");
@@ -49,16 +54,19 @@ int main(int argc, char *argv[])
 	constraint = ped_constraint_any(dev);
 
 	// part1: 17.4Kb ~ 15MB
+	/*
 	part = ped_partition_new(disk, PED_PARTITION_NORMAL,
 				NULL,
 				34, 29296);
 	ped_disk_add_partition(disk, part, constraint);
+	*/
 
 	// part2: 15MB ~ 35MB
 	part = ped_partition_new(disk, PED_PARTITION_NORMAL,
 				NULL,
-				29297, 71680);
-	ped_partition_set_name(part, "udv2");
+				(int)(atoll(argv[3])/512),
+				(int)(atoll(argv[4])/512));
+	ped_partition_set_name(part, argv[2]);
 	ped_disk_add_partition(disk, part, constraint);
 
 	ped_disk_commit(disk);

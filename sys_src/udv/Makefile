@@ -1,6 +1,6 @@
 CC=gcc
 CFLAGS=-Wall -g
-objects=libudv.o list.c
+objects=libudv.o list.o
 
 libudv.a : $(objects)
 	ar -rcs libudv.a $(objects)

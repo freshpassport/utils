@@ -24,49 +24,69 @@ _create_disk_label (PedDevice *dev, PedDiskType *type)
 
 ssize_t udv_create(const char *vg_name, const char *name, uint64_t capacity)
 {
-        udv_info_t list[MAX_UDV], *udv;
-        size_t udv_cnt = 0, i;
-
         PedDevice *device = NULL;
-        PedDisk *disk;
+        PedDisk *disk = NULL;
         PedPartition *part;
         PedConstraint *constraint;
 
+	struct list list, *n, *nt;
+	struct geom_stru *elem;
 	const char *vg_dev = vg_name;   // for debug
+
+	ssize_t ret_code = E_OK;
 
         // 参数检查
         if (!name)
-                return EINVAL;
-
-        // 检查用户数据卷是否存在
-        if (get_udv_by_name(name))
-                return EEXIST;
+                return E_FMT_ERROR;
 
         // 检查VG是否存在
         //if (!(vg_dev=vg_name2dev(vg_name)))
         //        return EEXIST;
 
+        // 检查用户数据卷是否存在
+        if (get_udv_by_name(name))
+                return E_VG_NONEXIST;
+
+	// 检查空闲空间
+	if ( (ret_code = get_udv_free_list(vg_dev, &list)) <= 0 )
+		return ret_code;
+
         // 创建用户数据卷
         if (!(device = ped_device_get(vg_dev)))
-                goto error_eio;
-
-        if (!(disk = _create_disk_label(device, ped_disk_type_get("gpt"))))
-                goto error;
+		return E_SYS_ERROR;
 
         if (!(constraint = ped_constraint_any(device)))
                 goto error;
 
-        // TODO: 查找空隙
-        for (i=0; i<udv_cnt; i++)
-        {
-        }
+	if ( ped_disk_probe(device) && (disk=ped_disk_new(device)) )
+	{
+		if (strcmp(disk->type->name, "gpt"))
+			goto error;
+	}
+	else if (!(disk = _create_disk_label(device, ped_disk_type_get("gpt"))))
+		goto error;
 
+	list_iterate_safe(n, nt, &list)
+	{
+		elem = list_struct_base(n, struct geom_stru, list);
+		if (elem->geom.capacity >= capacity)
+		{
+			part = ped_partition_new(disk, PED_PARTITION_NORMAL,
+				NULL,
+				(elem->geom.start/DFT_SECTOR_SIZE),
+				(uint64_t)((elem->geom.start + capacity)/DFT_SECTOR_SIZE));
+			ped_partition_set_name(part, name);
+			ped_disk_add_partition(disk, part, constraint);
+			ped_disk_commit(disk);
+			break;
+		}
+	}
+
+	free_geom_list(&list);
+	ped_disk_destroy(disk);
 error:
         ped_device_destroy(device);
-error_eio:
-        return EIO;
-success:
-        return 0;
+	return E_OK;
 }
 
 void free_geom_list(struct list *list)
@@ -84,22 +104,16 @@ void free_geom_list(struct list *list)
         }
 }
 
-/* 计算磁盘空闲空间条件 */
-enum {
-        GET_DISK_CAPACITY = 0,	// 磁盘无label, 有GPT分区表但是无分区
-	GET_FREE_LIST,		// 磁盘有GPT分区表且存在分区
-	GET_ERROR		// 磁盘有分区表且不为GPT格式
-};
-
 ssize_t get_udv_free_list(const char *vg_name, struct list *list)
 {
         PedDevice *device = NULL;
-        PedDisk *disk;
+        PedDisk *disk = NULL;
         PedPartition *part;
 
         struct geom_stru *gs;
-	int type = GET_DISK_CAPACITY;
 	ssize_t ret_code = E_FMT_ERROR;
+	udv_geom last_geom = { 0, 0, 0 };
+	uint64_t end_pos = 0;
 
         if ( !(vg_name && list) )
                 return ret_code;
@@ -110,48 +124,50 @@ ssize_t get_udv_free_list(const char *vg_name, struct list *list)
 		ret_code = E_SYS_ERROR;
                 goto err_out;
 	}
+	end_pos = device->length * device->sector_size - 1;
 
-        if ( !(disk = ped_disk_new(device)) )
+	if ( ped_disk_probe(device) && (disk=ped_disk_new(device)) )
 	{
-		ret_code = E_SYS_ERROR;
-                goto err;
-	}
-
-	// 检查分区表是否存在以及类型是否为GPT
-	if (disk->type->name)
-        {
 		if (!strcmp(disk->type->name, "gpt"))
-			if (disk->part_list)
-				type = GET_FREE_LIST;
-			else
-				type = GET_DISK_CAPACITY;
-		else
-			type = GET_ERROR;
-
-        }
-
-	switch (type)
-	{
-		case GET_DISK_CAPACITY:
 		{
-			gs = (struct geom_stru*)malloc(sizeof(struct geom_stru));
 
-			gs->geom.start = 0;
-			gs->geom.capacity = (device->length * device->sector_size);
-			gs->geom.end = gs->geom.capacity - 1;
+			for (part = ped_disk_next_partition(disk, NULL); part;
+					part = ped_disk_next_partition(disk, part) )
+			{
+				if (part->num < 0)
+					continue;
 
-			list_add(list, &gs->list);
-			ret_code = 1;
+				gs = (struct geom_stru*)malloc(sizeof(struct geom_stru));
+				gs->geom.start = last_geom.end;
+				gs->geom.end = part->geom.start * DFT_SECTOR_SIZE - 1;
+				gs->geom.capacity = gs->geom.end - gs->geom.start + 1;
+				list_add(list, &gs->list);
+
+				last_geom.end = gs->geom.end + 1;
+				if (ret_code<0)
+					ret_code = 0;
+				ret_code++;
+			}
 		}
-		break;
-
-		case GET_FREE_LIST:
-		{
-		}
-		break;
 	}
 
-        ped_disk_destroy(disk);
+	if (last_geom.end < end_pos)
+	{
+		gs = (struct geom_stru*)malloc(sizeof(struct geom_stru));
+
+		gs->geom.start = last_geom.end;
+		gs->geom.end = end_pos;
+		gs->geom.capacity = gs->geom.end - gs->geom.start + 1;
+
+		list_add(list, &gs->list);
+		if (ret_code < 0)
+			ret_code = 1;
+		else
+			ret_code++;
+	}
+
+	if (disk)
+		ped_disk_destroy(disk);
 err:
         ped_device_destroy(device);
 err_out:
@@ -225,8 +241,8 @@ size_t udv_list(udv_info_t *list, size_t n)
                         continue;
 
                 // 获取当前MD分区信息
-                disk = ped_disk_new(dev);
-                if (!disk) continue;
+		if ( !ped_disk_probe(dev) || !(disk=ped_disk_new(dev)) )
+			continue;
 
                 for (part=ped_disk_next_partition(disk, NULL); part;
                                 part=ped_disk_next_partition(disk, part))

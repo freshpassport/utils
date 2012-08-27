@@ -14,6 +14,9 @@ struct option udv_options[] = {
 	{"capacity",		required_argument,	NULL,	'p'},
 	{"delete",		required_argument,	NULL,	'd'},
 	{"list",		no_argument,		NULL,	'l'},
+	{"modify",		no_argument,		NULL,	'm'},
+	{"old-name",		required_argument,	NULL,	'o'},
+	{"new-name",		required_argument,	NULL,	'n'},
 	{0, 0, 0, 0}
 
 };
@@ -24,12 +27,14 @@ void udv_usage()
   printf(_T("Usage: --list\n"));
   printf(_T("       --create --vg <vg_name> --name <udv_name> --capacity <size>\n"));
   printf(_T("       --delete <udv_name>\n"));
+  printf(_T("       --modify --old-name <udv_name> --new-name <udv_name>\n"));
   printf(_T("\n\n"));
   exit(0);
 }
 
 enum {
 	UDV_MODE_CREATE = 1,
+	UDV_MODE_RENAME = 2,
 	UDV_MODE_NONE
 };
 
@@ -38,11 +43,16 @@ enum {
 	MSG_ERROR
 };
 
-static int udv_mode = UDV_MODE_NONE;
+static int mode = UDV_MODE_NONE;	// for create & rename
+
+// for create
 static char vg_name[128] = {0};
 static char udv_name[128] = {0};
 static uint64_t capacity = 0;
-static int mode = UDV_MODE_NONE;
+
+// for rename
+static char m_old_name[128] = {0};
+static char m_new_name[128] = {0};
 
 void return_json_msg(const int type, const char *msg)
 {
@@ -72,7 +82,7 @@ void list_udv()
 	udv = &list[0];
 
 	puts("{");
-	printf("\t\"total\":%d,\n", udv_cnt);
+	printf("\t\"total\":%d,\n", (int)udv_cnt);
 	printf("\t\"rows\":");
 
 	if (udv_cnt==0)
@@ -88,11 +98,11 @@ void list_udv()
 			strcpy(udv_type, "nas");
 
 		if (i+1==udv_cnt)
-			printf("\n\t\t{\"name\":\"%s\", \"capacity\":%lld, \"state\":\"%s\"}",
-					udv->name, udv->geom.capacity, udv_type);
+			printf("\n\t\t{\"name\":\"%s\", \"capacity\":%llu, \"state\":\"%s\"}",
+					udv->name, (unsigned long long)udv->geom.capacity, udv_type);
 		else
-			printf("\n\t\t{\"name\":\"%s\", \"capacity\":%lld, \"state\":\"%s\"},",
-					udv->name, udv->geom.capacity, udv_type);
+			printf("\n\t\t{\"name\":\"%s\", \"capacity\":%llu, \"state\":\"%s\"},",
+					udv->name, (unsigned long long)udv->geom.capacity, udv_type);
 		udv++;
 	}
 
@@ -107,7 +117,7 @@ void list_udv()
 
 int udv_main(int argc, char *argv[])
 {
-	char c, orig_cmd[256];
+	char c;
 
 	//opterr = 0;  // 关闭错误提示
 	while( (c=getopt_long(argc, argv, "", udv_options, NULL)) != -1 )
@@ -135,6 +145,15 @@ int udv_main(int argc, char *argv[])
 				else
 					return_json_msg(MSG_ERROR, "删除用户数据卷失败!");
 				break;
+			case 'm':
+				mode = UDV_MODE_RENAME;
+				break;
+			case 'o':
+				strcpy(m_old_name, optarg);
+				break;
+			case 'n':
+				strcpy(m_new_name, optarg);
+				break;
 			case '?':
 			default:
 				udv_usage();
@@ -150,6 +169,15 @@ int udv_main(int argc, char *argv[])
 		if (udv_create(vg_name, udv_name, capacity) >= 0)
 			return_json_msg(MSG_OK, "创建用数据卷成功!");
 		return_json_msg(MSG_ERROR, "创建用户数据卷失败!");
+	}
+	else if (UDV_MODE_RENAME == mode)
+	{
+		if ( !(m_old_name[0] && m_new_name[0]) )
+			return_json_msg(MSG_ERROR, "修改用户数据卷参数错误!");
+
+		if (udv_rename(m_old_name, m_new_name) >= 0)
+			return_json_msg(MSG_OK, "修改用户数据卷名称操作成功!");
+		return_json_msg(MSG_ERROR, "修改用户数据卷名称操作失败!");
 	}
 
 	udv_usage();

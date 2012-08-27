@@ -14,5 +14,5 @@ int external_main(int argc, char *argv[])
 		strcat(cmd, tmp);
 	}
 
-	system(cmd);
+	return system(cmd);
 }

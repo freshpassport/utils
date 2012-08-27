@@ -57,6 +57,10 @@ ssize_t udv_create(const char *vg_name, const char *name, uint64_t capacity)
 		return E_SYS_ERROR;
         constraint = ped_constraint_any(device);
 
+	// 检查是否为MD设备
+	if (device->type != PED_DEVICE_MD)
+		return E_DEVICE_NOTMD;
+
 	if ( (type = ped_disk_probe(device)) && !strcmp(type->name, "gpt") )
 		disk = ped_disk_new(device);
 	else
@@ -342,59 +346,45 @@ udv_info_t* get_udv_by_name(const char *name)
  */
 ssize_t udv_rename(const char *name, const char *new_name)
 {
-        udv_info_t list[MAX_UDV], *udv;
-        size_t udv_cnt, i;
-        bool old_exist = false, new_exist = false;
+        udv_info_t *udv;
 
-        PedDevice *device;
+        PedDevice *device = NULL;
         PedDisk *disk;
         PedPartition *part;
 
+	ssize_t ret_code = E_SYS_ERROR;
+
         // 参数检查
         if (!(name && new_name))
-                return EINVAL;
+                return E_FMT_ERROR;
 
-        // 查找UDV
-        if ((udv_cnt=udv_list(list, MAX_UDV))==0)
-                return ENODEV;
+	// 被修改的名称确保存在
+	if (!(udv=get_udv_by_name(name)))
+		return E_UDV_NONEXIST;
 
-        udv = &list[0];
-        for (i=0; i<udv_cnt; i++)
-        {
-                if (!strcmp(name, udv->name))
-                        old_exist = true;
-                if (!strcmp(new_name, udv->name))
-                        new_exist = true;
-        }
-
-        // 检查当前UDV是否存在
-        if (!old_exist)
-                return ENODEV;
-
-        // 检查新的UDV是否存在
-        if (new_exist)
-                return EEXIST;
+	// 修改的新名称确保不存在
+	if (get_udv_by_name(new_name))
+		return E_UDV_EXIST;
 
         // 修改名称
         if (!(device = ped_device_get(udv->vg_dev)))
-                goto error_eio;
+                return E_SYS_ERROR;
 
         if (!(disk = ped_disk_new(device)))
                 goto error;
 
         if (!(part = ped_disk_get_partition(disk, udv->part_num)))
-                goto error;
+                goto error_part;
 
         if (ped_partition_set_name(part, new_name) &&
                 ped_disk_commit(disk))
-                goto success;
+		ret_code = E_OK;
 
+error_part:
+	ped_disk_destroy(disk);
 error:
         ped_device_destroy(device);
-error_eio:
-        return EIO;
-success:
-        return 0;
+        return ret_code;
 }
 
 /**

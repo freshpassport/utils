@@ -10,11 +10,9 @@ int external_main(int argc, char *argv[])
 	strcpy(cmd, "sys-manager-py");
 	for (i=0; i<argc; i++)
 	{
-		printf("argv[%d] = %s\n", i, argv[i]);
 		if (!strncmp(argv[i], "--disk=", 7))
 		{
-			p = strstr(argv[i], "--disk=");
-			printf("p = %s\n", p);
+			p = strtok(argv[i], "--disk=");
 			strcpy(tmp, " --disk=\'");
 			strcat(tmp, p);
 			strcat(tmp, "\'");
@@ -24,6 +22,5 @@ int external_main(int argc, char *argv[])
 		strcat(cmd, tmp);
 	}
 
-	printf("cmd: \n\t%s\n", cmd);
 	return system(cmd);
 }

@@ -10,4 +10,6 @@ rsync -av web-iface/sys-manager /usr/local/bin/
 
 rsync -av udv/libudv.a /usr/local/lib
 
+rsync -av iscsi/iscsi /usr/local/bin
+
 ldconfig

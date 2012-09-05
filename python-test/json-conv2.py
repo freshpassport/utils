@@ -33,4 +33,3 @@ class MyEncoder(json.JSONEncoder):
 if __name__ == '__main__':
 	d = MyEncoder().encode(p)
 	print d
-	print type(d)

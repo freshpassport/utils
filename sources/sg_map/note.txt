@@ -1,0 +1,3 @@
+sudo sg_vpd /dev/sda --page=sv  获取支持的VPD
+ataprint.cpp : ataReadSmartValue()
+

@@ -34,10 +34,7 @@ int main()
 		xmlChar *serial = xmlGetProp(curNode, "serial");
 		xmlChar *type = xmlGetProp(curNode, "type");
 		printf("node: %s, md_uuid = %s, serial = %s, type = %s\n",
-			curNode->name, md_uuid, serial, type);
-		xmlFree(md_uuid);
-		xmlFree(serial);
-		xmlFree(type);
+				curNode->name, md_uuid, serial, type);
 
 		curNode = curNode->next;
 	}

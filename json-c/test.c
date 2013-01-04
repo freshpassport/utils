@@ -25,7 +25,7 @@ void json_example1()
 	a = json_object_new_object();
 	json_object_object_add(a, "result", json_object_new_int(10));
 	json_object_object_add(a, "msg", json_object_new_string("test result!"));
-	
+
 	printf("%s\n", json_object_to_json_string(a));
 }
 

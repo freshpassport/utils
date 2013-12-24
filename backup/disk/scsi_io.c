@@ -42,6 +42,50 @@ typedef enum {
  * 通过SCSI INQUIRY命令取得Vital Product Data(VPD)页面信息 
  * Page Code 80h - Unit serial number  
  */  
+
+int scsi_get_model(const int fd, char *buf)
+{
+	int i;
+	sg_io_hdr_t io_hdr;  
+	uint8_t cmd[16] = {0x85, 0x08, 0x0e, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xec, 0x00};
+	uint8_t sense_buff[32], data[512];
+
+	memset( &io_hdr, 0, sizeof( sg_io_hdr_t ) );  
+	io_hdr.interface_id = 'S';  
+
+	/* CDB */  
+	io_hdr.cmdp = cmd;  
+	io_hdr.cmd_len = sizeof( cmd );  
+
+	io_hdr.sbp = sense_buff;
+	io_hdr.mx_sb_len = 32;
+
+	io_hdr.dxferp = data;
+	io_hdr.dxfer_len = 512;
+
+	io_hdr.dxfer_direction = SG_DXFER_FROM_DEV;  
+	io_hdr.timeout = 2000;
+
+	printf("cmd1: ");
+	for(i=0;i<io_hdr.cmd_len;i++)
+		printf("%.2x ", cmd[i]);
+	puts("");
+
+	if ( ioctl( fd, SG_IO, ( unsigned long )&io_hdr ) < 0 ) {  
+		printf("ioctl %s SG_IO failed.\n");  
+	}
+	
+	printf("data1: ");
+	for (i=0; i<io_hdr.dxfer_len; i++)
+		printf("%.2x ", data[i]);
+	puts("\n---------");
+	for (i=0; i<io_hdr.dxfer_len; i++) {
+		if (isalnum(data[i]))
+			printf("%c ", data[i]);
+	}
+	puts("");
+}
+
 int scsi_get_inquiry( const int fd, char *buf )  
 {  
 	sg_io_hdr_t io_hdr;  
@@ -94,9 +138,26 @@ int scsi_get_inquiry( const int fd, char *buf )
 	/* SCSI timeout in ms */  
 	io_hdr.timeout = 6;  
 
+	printf("cmd: ");
+	for(i=0;i<io_hdr.cmd_len;i++)
+		printf("%.2x ", cmd[i]);
+	puts("");
+
 	if ( ioctl( fd, SG_IO, ( unsigned long )&io_hdr ) < 0 ) {  
 		printf("ioctl %s SG_IO failed.\n");  
 	}  
+
+	printf("sense buff: ");
+	for (i=0; i<io_hdr.mx_sb_len; i++)
+		printf("%.2x ", sense_buffer[i]);
+	puts("");
+
+	printf("data: ");
+	for (i=0; i<io_hdr.dxfer_len; i++)
+		printf("%.2x ", data[i]);
+	for (i=0; i<io_hdr.dxfer_len; i++)
+		printf("%c ", data[i]);
+	puts("");
 
 	if ( ( io_hdr.info & SG_INFO_OK_MASK ) != SG_INFO_OK ) {  
 		if ( io_hdr.sb_len_wr > 0 ) {  
@@ -283,6 +344,22 @@ int ata_getid(int device, char *data)
 }
 #endif
 
+void get_inquiry(char *dev)
+{
+	int fd;
+	char buff[2048];
+
+	fd = open(dev, O_RDONLY);
+	if (fd<0) {
+		printf("open %s error!\n", dev);
+		return;
+	}
+
+	scsi_get_inquiry(fd, buff);
+	scsi_get_model(fd, buff);
+	close(fd);
+}
+
 void scsi_version(const char *dev)
 {
   int fd, vers;
@@ -291,7 +368,7 @@ void scsi_version(const char *dev)
 
   UINT8 buf[65535];
   char manufacture[9];
-  char product[17];
+  char product[41];
   char revision[5];
   char data[1024];
   
@@ -311,8 +388,9 @@ void scsi_version(const char *dev)
     memset(manufacture, 0, 9);
     strncpy((char*)&manufacture, (char*)&buf[8], 8);
 
-    memset(product, 0, 17);
-    strncpy((char*)&product, (char*)&buf[16], 16);
+    memset(product, 0, 41);
+    //strncpy((char*)&product, (char*)&buf[16], 16);
+    strncpy((char*)&product, (char*)&buf[16], 20);
 
     memset(revision, 0, 5);
     strncpy((char*)&revision, (char*)&buf[32], 4);
@@ -353,6 +431,9 @@ int main(const int argc, const char *argv[])
 {
 	if (argc<2)
 		return -1;
-  scsi_version(argv[1]);
+	//scsi_version(argv[1]);
+	get_inquiry(argv[1]);
+
+	return 0;
 }
 

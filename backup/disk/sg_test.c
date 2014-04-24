@@ -138,6 +138,7 @@ void show_product_rev(struct sg_io_hdr * hdr) {
 	}
 	putchar('\n');
 }
+
 int main(int argc, char * argv[]) {
 	test_execute_Inquiry(argv[1], 0, 0);
 	return EXIT_SUCCESS;
